@@ -50,7 +50,7 @@ body.pl #app>:not(#cv){display:none}body.pl #app{grid-template:1fr/1fr;padding:0
 <div id="fps"></div><div id="toast"></div>
 <div id="app">
   <div id="top">
-    <div class="g"><button id="ex2">Exit</button><button id="un" aria-label="Undo">↶</button><button id="re" aria-label="Redo">↷</button></div>
+    <div class="g"><button id="ex2">Save</button><button id="un" aria-label="Undo">↶</button><button id="re" aria-label="Redo">↷</button></div>
     <input id="nm" value="Unnamed 1" aria-label="Level name">
     <div class="g"><button id="tp" aria-label="Templates">▦</button><button id="st" aria-label="Settings">⚙</button><button id="pl" class="ac">▷&nbsp;<span>Play</span></button></div>
   </div>
@@ -123,9 +123,11 @@ R.domElement.addEventListener('pointermove',e=>{
  if(P){if(look.on){yaw-=(e.clientX-look.on[0])*.006;pit=Math.max(-1.4,Math.min(1.4,pit-(e.clientY-look.on[1])*.006));look.on=[e.clientX,e.clientY]}return}
  const t=pick(e);ghost.visible=!!t&&tool=='place'&&!inspOn;if(t)ghost.position.set(t.add[0]+.5,t.add[1]+.5,t.add[2]+.5)});
 addEventListener('pointerup',()=>look.on=null);
+addEventListener('pointercancel',()=>{down=null;look.on=null});
 const look={on:null};let P=null,yaw=0,pit=0;
 R.domElement.addEventListener('pointerup',e=>{
- if(P||!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;down=null;
+ const start=down;down=null;
+ if(P||!start||Math.hypot(e.clientX-start[0],e.clientY-start[1])>6)return;
  const t=pick(e);if(!t)return;
  if(tool=='spawn'){spawn=[t.add[0]+.5,t.add[1],t.add[2]+.5];sp.position.set(spawn[0],spawn[1]+1.2,spawn[2]);save();return}
  if(tool=='del'){if(t.k)act(t.k,world.get(t.k),null);return}
@@ -175,12 +177,13 @@ $('tpm').onclick=e=>{const n=e.target.dataset.t;if(n==null)return;clearAll();$('
 
 // ---------- Play ----------
 const K={};addEventListener('keydown',e=>{K[e.code]=1;if(P&&(e.code=='Space'||e.code.startsWith('Arrow')))e.preventDefault();if(e.code=='Escape'&&P)stop()});addEventListener('keyup',e=>K[e.code]=0);
-document.querySelectorAll('#pd [data-k]').forEach(b=>{b.onpointerdown=()=>K[b.dataset.k]=1;b.onpointerup=b.onpointerleave=()=>K[b.dataset.k]=0});
+document.querySelectorAll('#pd [data-k]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();K[b.dataset.k]=1};b.onpointerup=b.onpointerleave=b.onpointercancel=()=>K[b.dataset.k]=0});
+addEventListener('blur',()=>{for(const k in K)K[k]=0;down=null;look.on=null});
 const solid=(x,y,z)=>{const d=world.get(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`);return d&&d.k=='cube'&&d.s};
 const hitB=(x,y,z)=>{for(const dx of[-.3,.3])for(const dz of[-.3,.3])for(const h of[.05,.9,1.6])if(solid(x+dx,y+h,z+dz))return 1;return 0};
 const under=()=>[-.3,.3].some(dx=>[-.3,.3].some(dz=>solid(P.x+dx,P.y-.05,P.z+dz)));
-function play(){P={x:spawn[0],y:spawn[1],z:spawn[2],vy:0};yaw=0;pit=0;document.body.classList.add('pl');$('pd').hidden=false;OC.enabled=false;ghost.visible=sp.visible=pin.visible=false;$('tpm').hidden=$('stm').hidden=true}
-function stop(){P=null;document.body.classList.remove('pl');$('pd').hidden=true;OC.enabled=true;sp.visible=true;C.position.set(7,9,11);refresh()}
+function play(){for(const k in K)K[k]=0;P={x:spawn[0],y:spawn[1],z:spawn[2],vy:0};yaw=0;pit=0;document.body.classList.add('pl');$('pd').hidden=false;OC.enabled=false;ghost.visible=sp.visible=pin.visible=false;$('tpm').hidden=$('stm').hidden=true}
+function stop(){P=null;for(const k in K)K[k]=0;down=null;look.on=null;document.body.classList.remove('pl');$('pd').hidden=true;OC.enabled=true;sp.visible=true;C.position.set(7,9,11);refresh()}
 $('pl').onclick=play;$('sp').onclick=stop;
 function die(win){P.x=spawn[0];P.y=spawn[1];P.z=spawn[2];P.vy=0;if(!win)toast('Try again')}
 function step(dt){
