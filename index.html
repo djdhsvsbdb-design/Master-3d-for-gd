@@ -61,7 +61,7 @@ body.pl #app>:not(#cv){display:none}body.pl #app{grid-template:1fr/1fr;padding:0
     <div id="stm" class="menu" hidden>
       <b>Settings</b>
       <label class="row">Theme<select id="th"><option value="">Pink</option><option value="gold">Gold</option></select></label>
-      <label class="row">GD view<select id="pj"><option value="0">Flat</option><option value="1" selected>Oblique 3D</option><option value="2">Perspective</option></select></label>
+      <label class="row">GD view<select id="pj"><option value="0">Flat 2D</option><option value="1" selected>Isometric 3D</option><option value="2">Perspective 3D</option></select></label>
       <button id="ex">Export .gmd</button>
     </div>
   </div>
@@ -207,11 +207,31 @@ function save(){try{localStorage.setItem('cubeEd',JSON.stringify({w:[...world].m
 
 // ---------- экспорт .gmd ----------
 const HDR='kA13,0,kA15,0,kA16,0,kA14,,kA6,0,kA7,0,kA17,0,kA18,0,kS39,0,kA2,0,kA3,0,kA8,0,kA4,0,kA9,0,kA10,0,kA11,0;';
-function build(){const m=+$('pj').value,ks=[...world.keys()].map(k=>k.split(',').map(Number)),XO=Math.min(0,...ks.map(c=>c[0])),ZO=Math.min(0,...ks.map(c=>c[2]));
- const out=[`1,31,2,${Math.round((spawn[0]-XO)*30)},3,${Math.round(15+spawn[1]*30)}`];
- for(const [k,d] of world){const c=k.split(',').map(Number),z=c[2]-ZO,s=m==2?1/(1+.12*z):1,x=Math.round((c[0]-XO)*30+15),y=Math.round(15+c[1]*30*s+(m?z*(m==1?15:18):0)),
-  id=d.k=='pyr'?8:d.d?88:d.b?35:d.f?2063:1;out.push(`1,${id},2,${x},3,${y}`+(s!=1?`,32,${s.toFixed(3)}`:''))}
- return HDR+out.join(';')+';'}
+function build(){
+ const m=+$('pj').value;
+ const cells=[...world].map(([k,d])=>({p:k.split(',').map(Number),d}));
+ const points=[...cells.map(v=>v.p),[spawn[0],spawn[1],spawn[2]]];
+ // Geometry Dash is a 2D engine: project the editor's X/Z plane into
+ // an isometric layout so depth changes BOTH screen coordinates.
+ const raw=(x,y,z)=>{
+  if(m===0)return{x:x*30,y:(y+z)*30};
+  const depth=Math.max(0,z-Math.min(...points.map(p=>p[2])));
+  const scale=m===2?Math.max(.65,1-depth*.012):1;
+  return{x:(x-z)*30*scale,y:((x+z)*15+y*30)*scale};
+ };
+ const projected=points.map(p=>raw(p[0],p[1],p[2]));
+ const minX=Math.min(0,...projected.map(p=>p.x)),minY=Math.min(0,...projected.map(p=>p.y));
+ const pos=p=>{const q=raw(p[0],p[1],p[2]);return{x:Math.round(q.x-minX+15),y:Math.round(q.y-minY+15)}};
+ const start=pos(spawn);
+ const out=[`1,31,2,${start.x},3,${start.y}`];
+ for(const {p,d} of cells){
+  const q=pos(p),depth=Math.max(0,p[2]-Math.min(...points.map(v=>v[2])));
+  const scale=m===2?Math.max(.65,1-depth*.012):1;
+  const id=d.k==='pyr'?8:d.d?88:d.b?35:d.f?2063:1;
+  out.push(`1,${id},2,${q.x},3,${q.y}`+(scale!==1?`,32,${scale.toFixed(3)}`:''));
+ }
+ return HDR+out.join(';')+';';
+}
 async function gz(s){const cs=new CompressionStream('gzip'),w=cs.writable.getWriter();w.write(new TextEncoder().encode(s));w.close();
  const u=new Uint8Array(await new Response(cs.readable).arrayBuffer());let b='';for(let i=0;i<u.length;i+=8192)b+=String.fromCharCode(...u.subarray(i,i+8192));
  return btoa(b).replace(/\+/g,'-').replace(/\//g,'_')}
