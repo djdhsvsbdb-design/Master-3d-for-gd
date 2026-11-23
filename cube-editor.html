@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cube Editor</title>
+<style>
+:root{--bg:#101015;--pn:#1c1c24;--ln:#2c2c38;--ac:#e8267c;--at:#fff;--tx:#f2f2f5}
+[data-t=gold]{--bg:#000;--pn:#15120a;--ln:#3a2f10;--ac:#d4af37;--at:#000;--tx:#f5f1e6}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--tx);font:13px/1.3 Inter,system-ui,sans-serif;overflow:hidden;user-select:none}
+#app{display:grid;height:100dvh;grid-template:48px 1fr 60px/52px 1fr 52px;gap:8px;padding:8px}
+#top{grid-column:1/4;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.g{display:flex;gap:6px}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--pn);border:0;border-radius:10px;cursor:pointer;height:40px;min-width:40px;padding:0 12px;display:grid;place-items:center}
+button.on,button.ac{background:var(--ac);color:var(--at);font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac)}
+#nm{background:none;border:0;text-align:center;font-size:14px;min-width:0;flex:1;opacity:.85}
+.tb{display:flex;flex-direction:column;gap:8px;align-items:center;padding-top:4px}
+.tb button{width:40px;padding:0}.tb svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#cv{position:relative;border-radius:12px;overflow:hidden;min-height:0}
+#cv canvas{display:block;width:100%;height:100%;touch-action:none}
+#fps{position:fixed;left:3px;top:0;font-size:11px;z-index:9;pointer-events:none}
+#pal{grid-column:2;display:flex;gap:6px;overflow-x:auto;align-items:center;scrollbar-width:thin}
+.sl{flex:none;width:44px;height:44px;padding:0;border:2px solid transparent;position:relative}
+.sl.on{border-color:var(--ac)}
+.sl i{display:block;width:26px;height:26px;border-radius:5px}
+.sl i.p{clip-path:polygon(50% 0,100% 100%,0 100%);border-radius:0}
+.menu{position:absolute;right:10px;top:10px;background:var(--pn);border-radius:10px;padding:10px;min-width:190px;display:flex;flex-direction:column;gap:8px;z-index:5}
+.menu[hidden]{display:none}
+.menu b,.menu p{font-size:12px;opacity:.7;font-weight:400}.menu b{opacity:1;font-weight:600;font-size:14px}
+.menu button{height:32px;justify-content:start;background:#0000}.menu button:hover{background:var(--ln)}
+.menu select{background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:4px}
+.sw{display:flex;gap:8px}.sw label{display:flex;flex-direction:column;align-items:center;font-size:10px;opacity:.8}
+.sw input{width:32px;height:32px;border:0;padding:0;background:none;border-radius:8px;cursor:pointer}
+.row{display:flex;justify-content:space-between;align-items:center}
+.row input[type=checkbox]{appearance:none;width:34px;height:20px;border-radius:10px;background:var(--ln);position:relative;cursor:pointer}
+.row input[type=checkbox]::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.15s}
+.row input[type=checkbox]:checked{background:var(--ac)}.row input:checked::after{left:17px}
+#pd{position:fixed;inset:auto 0 18px 0;display:flex;justify-content:space-between;padding:0 18px;pointer-events:none;z-index:8}
+#pd[hidden]{display:none}#pd button{pointer-events:auto;width:52px;height:52px;opacity:.85}
+.dp{display:grid;grid-template:repeat(2,52px)/repeat(3,52px);gap:6px}.dp button:nth-child(1){grid-column:2}
+body.pl #app>:not(#cv){display:none}body.pl #app{grid-template:1fr/1fr;padding:0}body.pl #cv{border-radius:0}
+#toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);background:var(--ac);color:var(--at);padding:8px 16px;border-radius:20px;z-index:20;display:none}
+@media(max-width:640px){#app{grid-template:48px 1fr 56px/46px 1fr 46px;gap:6px;padding:6px}.tb button{width:36px}#pl span{display:none}}
+</style>
+</head>
+<body>
+<div id="fps"></div><div id="toast"></div>
+<div id="app">
+  <div id="top">
+    <div class="g"><button id="ex2">Exit</button><button id="un" aria-label="Undo">↶</button><button id="re" aria-label="Redo">↷</button></div>
+    <input id="nm" value="Unnamed 1" aria-label="Level name">
+    <div class="g"><button id="tp" aria-label="Templates">▦</button><button id="st" aria-label="Settings">⚙</button><button id="pl" class="ac">▷&nbsp;<span>Play</span></button></div>
+  </div>
+  <div id="lt" class="tb"></div>
+  <div id="cv">
+    <div id="insp" class="menu" hidden></div>
+    <div id="tpm" class="menu" hidden><p>Templates</p><button data-t="0">Empty world</button><button data-t="1">Village</button><button data-t="2">Hills</button></div>
+    <div id="stm" class="menu" hidden>
+      <b>Settings</b>
+      <label class="row">Theme<select id="th"><option value="">Pink</option><option value="gold">Gold</option></select></label>
+      <label class="row">GD view<select id="pj"><option value="0">Flat</option><option value="1" selected>Oblique 3D</option><option value="2">Perspective</option></select></label>
+      <button id="ex">Export .gmd</button>
+    </div>
+  </div>
+  <div id="rt" class="tb"></div>
+  <div id="pal"></div>
+</div>
+<div id="pd" hidden>
+  <div class="dp"><button data-k="ArrowUp">▲</button><button data-k="ArrowLeft">◀</button><button data-k="ArrowDown">▼</button><button data-k="ArrowRight">▶</button></div>
+  <div class="g" style="align-items:end"><button id="sp" class="ac" style="width:70px;pointer-events:auto">Stop</button><button data-k="Space">Jump</button></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const $=i=>document.getElementById(i),T=THREE;
+// ---------- данные ----------
+const slot=(c,n)=>({n,c,s:1,d:0,b:0,f:0,t:0,pin:null});
+const WH=['#ffffff','#e6e6ee','#c8c8d2','#ffffff'];
+let cubes=Array.from({length:16},(_,i)=>slot(i?WH.slice():['#6a1be0','#e089d8','#7a2a5a','#f2f2f2'],'Cube '+(i+1)));
+const PC=['#e0323c','#f4f4f4','#222','#f08a24','#f2c230','#7fd13b','#2fa84f','#26b5a5','#2eb8e6','#3a6be0','#5b45d6','#8a3fd1','#d63fa0','#8a5a3a','#7d7d86','#111'];
+let pyrs=PC.map((c,i)=>({...slot([c,c,c,c],'Spike '+(i+1)),d:1}));
+let mode='cube',idx={cube:0,pyr:0},tool='place',inspOn=false,spawn=[2.5,0,2.5];
+const world=new Map();let H=[],RD=[];
+const arr=()=>mode=='cube'?cubes:pyrs,cur=()=>arr()[idx[mode]];
+const strip=d=>d&&JSON.parse(JSON.stringify({...d,m:0}));
+const mkd=()=>{const s=cur();return JSON.parse(JSON.stringify({k:mode,c:s.c,s:s.s,d:s.d,b:s.b,f:s.f,t:s.t,pin:s.pin}))};
+
+// ---------- сцена ----------
+const cv=$('cv'),R=new T.WebGLRenderer({antialias:true});cv.prepend(R.domElement);R.setPixelRatio(Math.min(devicePixelRatio,2));
+const S=new T.Scene();S.background=new T.Color(0x86b9ee);
+const C=new T.PerspectiveCamera(60,1,.1,300);C.position.set(7,9,11);
+const OC=new T.OrbitControls(C,R.domElement);OC.enableDamping=true;OC.maxPolarAngle=Math.PI/2-.03;
+S.add(new T.AmbientLight(0xffffff,.8));const DL=new T.DirectionalLight(0xffffff,.55);DL.position.set(4,10,6);S.add(DL);
+S.add(new T.Mesh(new T.PlaneGeometry(80,80).rotateX(-Math.PI/2),new T.MeshLambertMaterial({color:0x62a54a})));
+const gd=new T.GridHelper(80,80,0x4d8c3b,0x4d8c3b);gd.position.y=.01;S.add(gd);
+const pink=0xe8267c,ghost=new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshBasicMaterial({color:pink,transparent:true,opacity:.45}));ghost.visible=false;S.add(ghost);
+const sp=new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(.6,.4,.4)),new T.LineBasicMaterial({color:pink}));S.add(sp);
+const pin=new T.Mesh(new T.SphereGeometry(.3,12,10),new T.MeshBasicMaterial({color:pink}));pin.visible=false;S.add(pin);
+const VM=new T.MeshLambertMaterial({vertexColors:true}),PG=new T.ConeGeometry(.7071,1,4).rotateY(Math.PI/4),GC={};
+function gc(c){const k=c.join();if(GC[k])return GC[k];const g=new T.BoxGeometry(1,1,1),p=g.attributes.position,n=g.attributes.normal,A=c.map(x=>new T.Color(x)),o=[];
+ for(let i=0;i<p.count;i++){const ny=n.getY(i),k2=ny>.5?A[0]:ny<-.5?A[3]:A[2].clone().lerp(A[1],p.getY(i)+.5);o.push(k2.r,k2.g,k2.b)}
+ g.setAttribute('color',new T.Float32BufferAttribute(o,3));return GC[k]=g}
+function setCell(k,d){const old=world.get(k);if(old)S.remove(old.m);
+ if(!d){world.delete(k);return}
+ const m=d.k=='cube'?new T.Mesh(gc(d.c),VM):new T.Mesh(PG,new T.MeshLambertMaterial({color:d.c[0]})),p=k.split(',').map(Number);
+ m.position.set(p[0]+.5,p[1]+.5,p[2]+.5);m.userData.key=k;S.add(m);world.set(k,{...d,m})}
+function act(k,b,a,rec=true){setCell(k,a);if(rec){H.push({k,b:strip(b),a:strip(a)});RD=[]}save()}
+$('un').onclick=()=>{const h=H.pop();if(h){setCell(h.k,h.b);RD.push(h);save()}};
+$('re').onclick=()=>{const h=RD.pop();if(h){setCell(h.k,h.a);H.push(h);save()}};
+function clearAll(){[...world.keys()].forEach(k=>setCell(k,null));H=[];RD=[]}
+
+// ---------- ввод ----------
+const ray=new T.Raycaster(),pl=new T.Plane(new T.Vector3(0,1,0),0);let down=null;
+function pick(e){const r=R.domElement.getBoundingClientRect();ray.setFromCamera({x:(e.clientX-r.left)/r.width*2-1,y:-(e.clientY-r.top)/r.height*2+1},C);
+ const h=ray.intersectObjects([...world.values()].map(d=>d.m))[0],v=new T.Vector3(),g=ray.ray.intersectPlane(pl,v)?v:null,gdist=g?ray.ray.origin.distanceTo(g):1e9;
+ if(h&&h.distance<=gdist){const k=h.object.userData.key,n=h.face.normal,a=['x','y','z'].sort((p,q)=>Math.abs(n[q])-Math.abs(n[p]))[0],c=k.split(',').map(Number),o=[0,0,0];o['xyz'.indexOf(a)]=Math.sign(n[a]);return{k,add:c.map((q,i)=>q+o[i])}}
+ return g?{k:null,add:[Math.floor(g.x),0,Math.floor(g.z)]}:null}
+R.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];if(P)look.on=[e.clientX,e.clientY]});
+R.domElement.addEventListener('pointermove',e=>{
+ if(P){if(look.on){yaw-=(e.clientX-look.on[0])*.006;pit=Math.max(-1.4,Math.min(1.4,pit-(e.clientY-look.on[1])*.006));look.on=[e.clientX,e.clientY]}return}
+ const t=pick(e);ghost.visible=!!t&&tool=='place'&&!inspOn;if(t)ghost.position.set(t.add[0]+.5,t.add[1]+.5,t.add[2]+.5)});
+addEventListener('pointerup',()=>look.on=null);
+const look={on:null};let P=null,yaw=0,pit=0;
+R.domElement.addEventListener('pointerup',e=>{
+ if(P||!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;down=null;
+ const t=pick(e);if(!t)return;
+ if(tool=='spawn'){spawn=[t.add[0]+.5,t.add[1],t.add[2]+.5];sp.position.set(spawn[0],spawn[1]+1.2,spawn[2]);save();return}
+ if(tool=='del'){if(t.k)act(t.k,world.get(t.k),null);return}
+ if(tool=='paint'){if(t.k)act(t.k,world.get(t.k),mkd());return}
+ const s=cur();
+ if(inspOn&&s.t){s.pin=t.add.slice();showPin();save();return}
+ const k=t.add.join(',');if(world.has(k)||t.add[1]<0)return;act(k,null,mkd());
+});
+function showPin(){const s=cur();pin.visible=inspOn&&!!s.t&&!!s.pin;if(pin.visible)pin.position.set(s.pin[0]+.5,s.pin[1]+.5,s.pin[2]+.5)}
+
+// ---------- панели ----------
+const IC={place:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>',paint:'<path d="M5 20c3 0 4-1 4-3a2 2 0 014 0c0 3-3 3-8 3zM11 15L20 5l-2-2-9 10"/>',del:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',spawn:'<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 10.5v4M6 12.5h4"/><circle cx="16" cy="13" r="1"/>',cube:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>',pyr:'<path d="M12 3l9 17H3zM12 3v17"/>'};
+function tbtn(box,k,fn){const b=document.createElement('button');b.dataset.k=k;b.setAttribute('aria-label',k);b.innerHTML=`<svg viewBox="0 0 24 24">${IC[k]}</svg>`;b.onclick=()=>{fn(k);refresh()};box.append(b)}
+['place','paint','del','spawn'].forEach(k=>tbtn($('lt'),k,v=>{tool=v;ghost.visible=false}));
+['cube','pyr'].forEach(k=>tbtn($('rt'),k,v=>{mode=v;inspOn=false;pal(false)}));
+function refresh(){document.querySelectorAll('#lt button').forEach(b=>b.classList.toggle('on',b.dataset.k==tool));document.querySelectorAll('#rt button').forEach(b=>b.classList.toggle('on',b.dataset.k==mode));insp();showPin()}
+function pal(full=true){const a=arr();$('pal').innerHTML=a.map((s,i)=>`<button class="sl${i==idx[mode]?' on':''}" data-i="${i}" aria-label="${s.n}">${mode=='cube'?`<i style="border-top:9px solid ${s.c[0]};background:linear-gradient(${s.c[1]},${s.c[2]})"></i>`:`<i class="p" style="background:${s.c[0]}"></i>`}</button>`).join('');if(full)refresh()}
+$('pal').onclick=e=>{const b=e.target.closest('.sl');if(!b)return;const i=+b.dataset.i;if(i==idx[mode])inspOn=!inspOn;else{idx[mode]=i;inspOn=false}tool='place';pal()};
+function insp(){const el=$('insp'),s=cur();el.hidden=!inspOn;if(!inspOn)return;const nm=['top','side ↑','side ↓','bottom'];
+ el.innerHTML=`<b>${s.n}</b><p>Colour</p><div class="sw">${s.c.slice(0,mode=='cube'?4:1).map((c,i)=>`<label><input type="color" value="${c}" data-i="${i}">${mode=='cube'?nm[i]:'color'}</label>`).join('')}</div>`+
+ [['s','Solid'],['d','Deadly'],['b','Bounce'],['f','Finish']].map(([k,l])=>`<div class="row">${l}<input type="checkbox" data-k="${k}"${s[k]?' checked':''}></div>`).join('')+
+ `<div class="row">Trigger<select id="trg"><option value="0">None<option value="1"${s.t?' selected':''}>Teleport</select></div>`+(s.t?'<p>Tap the ground to move the teleport pin: that is where the player goes.</p>':'')}
+$('insp').oninput=e=>{const s=cur(),t=e.target;
+ if(t.type=='color'){if(mode=='cube')s.c[+t.dataset.i]=t.value;else s.c=[t.value,t.value,t.value,t.value];pal(false)}
+ else if(t.type=='checkbox')s[t.dataset.k]=t.checked?1:0;
+ else if(t.id=='trg'){s.t=+t.value;if(!s.t)s.pin=null;insp();showPin()}
+ save()};
+$('tp').onclick=()=>{$('tpm').hidden=!$('tpm').hidden;$('stm').hidden=true};
+$('st').onclick=()=>{$('stm').hidden=!$('stm').hidden;$('tpm').hidden=true};
+$('th').onchange=e=>{document.documentElement.dataset.t=e.target.value;save()};
+$('nm').onchange=save;$('pj').onchange=save;
+$('ex2').onclick=()=>{save();toast('Saved in this browser')};
+function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2200)}
+
+// ---------- шаблоны ----------
+const P5=[['Grass',['#7ac24a','#8a6a3c','#6b4a2a','#6b4a2a']],['Stone',['#9a9aa2','#8a8a92','#7a7a82','#7a7a82']],['Brick',['#c8403a','#b03a34','#8a2a26','#8a2a26']],['Wood',['#c89a60','#b88a50','#8a6a40','#8a6a40']],['Leaves',['#4fa23a','#47933a','#357a2a','#357a2a']]];
+function fill(x0,y0,z0,x1,y1,z1,i){for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)setCell(`${x},${y},${z}`,{k:'cube',c:cubes[i].c.slice(),s:1,d:0,b:0,f:0,t:0,pin:null})}
+$('tpm').onclick=e=>{const n=e.target.dataset.t;if(n==null)return;clearAll();$('tpm').hidden=true;
+ if(n!='0')P5.forEach(([nm,c],i)=>Object.assign(cubes[i+1],slot(c,nm)));
+ if(n=='1'){
+  [[-9,-8],[3,-6],[-4,4]].forEach(([x,z])=>{fill(x,0,z,x+4,2,z+4,3);setCell(`${x+2},0,${z}`,null);setCell(`${x+2},1,${z}`,null);fill(x-1,3,z-1,x+5,3,z+5,4)});
+  [[-3,-2],[8,3],[7,-9]].forEach(([x,z])=>{fill(x,0,z,x,1,z,4);fill(x-1,2,z-1,x+1,3,z+1,5)});
+  for(let i=-15;i<=15;i++){fill(i,0,-15,i,0,-15,2);fill(i,0,15,i,0,15,2);fill(-15,0,i,-15,0,i,2);fill(15,0,i,15,0,i,2)}}
+ if(n=='2')for(let h=0;h<6;h++){const cx=(Math.random()*24-12)|0,cz=(Math.random()*24-12)|0,r=(3+Math.random()*4)|0,m=(2+Math.random()*3)|0;
+  for(let x=-r;x<=r;x++)for(let z=-r;z<=r;z++){const d=Math.hypot(x,z);if(d<=r){const ht=Math.max(1,Math.round(m*(1-d/r)));fill(cx+x,0,cz+z,cx+x,ht-1,cz+z,1)}}}
+ spawn=[2.5,0,2.5];sp.position.set(2.5,1.2,2.5);pal();save()};
+
+// ---------- Play ----------
+const K={};addEventListener('keydown',e=>{K[e.code]=1;if(P&&(e.code=='Space'||e.code.startsWith('Arrow')))e.preventDefault();if(e.code=='Escape'&&P)stop()});addEventListener('keyup',e=>K[e.code]=0);
+document.querySelectorAll('#pd [data-k]').forEach(b=>{b.onpointerdown=()=>K[b.dataset.k]=1;b.onpointerup=b.onpointerleave=()=>K[b.dataset.k]=0});
+const solid=(x,y,z)=>{const d=world.get(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`);return d&&d.k=='cube'&&d.s};
+const hitB=(x,y,z)=>{for(const dx of[-.3,.3])for(const dz of[-.3,.3])for(const h of[.05,.9,1.6])if(solid(x+dx,y+h,z+dz))return 1;return 0};
+const under=()=>[-.3,.3].some(dx=>[-.3,.3].some(dz=>solid(P.x+dx,P.y-.05,P.z+dz)));
+function play(){P={x:spawn[0],y:spawn[1],z:spawn[2],vy:0};yaw=0;pit=0;document.body.classList.add('pl');$('pd').hidden=false;OC.enabled=false;ghost.visible=sp.visible=pin.visible=false;$('tpm').hidden=$('stm').hidden=true}
+function stop(){P=null;document.body.classList.remove('pl');$('pd').hidden=true;OC.enabled=true;sp.visible=true;C.position.set(7,9,11);refresh()}
+$('pl').onclick=play;$('sp').onclick=stop;
+function die(win){P.x=spawn[0];P.y=spawn[1];P.z=spawn[2];P.vy=0;if(!win)toast('Try again')}
+function step(dt){
+ const f=(K.ArrowUp||K.KeyW?1:0)-(K.ArrowDown||K.KeyS?1:0),s=(K.ArrowRight||K.KeyD?1:0)-(K.ArrowLeft||K.KeyA?1:0),
+  vx=(-Math.sin(yaw)*f+Math.cos(yaw)*s)*4.5,vz=(-Math.cos(yaw)*f-Math.sin(yaw)*s)*4.5;
+ if(!hitB(P.x+vx*dt,P.y,P.z))P.x+=vx*dt;if(!hitB(P.x,P.y,P.z+vz*dt))P.z+=vz*dt;
+ if((P.y<=.001||under())&&K.Space)P.vy=8.5;
+ P.vy-=25*dt;const ny=P.y+P.vy*dt;
+ if(hitB(P.x,ny,P.z)){if(P.vy<0)P.y=Math.floor(ny+.05)+1;P.vy=0}else P.y=ny;
+ if(P.y<0){P.y=0;P.vy=Math.max(0,P.vy)}
+ if(Math.abs(P.x)>40||Math.abs(P.z)>40)return die();
+ const cs=[[P.x,P.y+.1,P.z],[P.x,P.y+.9,P.z],[P.x,P.y-.05,P.z]];
+ for(let i=0;i<3;i++){const c=cs[i],d=world.get(`${Math.floor(c[0])},${Math.floor(c[1])},${Math.floor(c[2])}`);if(!d)continue;
+  if(d.d)return die();
+  if(d.f){toast('Finish!');return die(1)}
+  if(d.t&&d.pin){P.x=d.pin[0]+.5;P.y=d.pin[1];P.z=d.pin[2]+.5;P.vy=0;return}
+  if(i==2&&d.b)P.vy=13}}
+
+// ---------- сохранение ----------
+function save(){try{localStorage.setItem('cubeEd',JSON.stringify({w:[...world].map(([k,d])=>[k,strip(d)]),cubes,pyrs,spawn,nm:$('nm').value,pj:$('pj').value,th:$('th').value}))}catch(e){}}
+
+// ---------- экспорт .gmd ----------
+const HDR='kA13,0,kA15,0,kA16,0,kA14,,kA6,0,kA7,0,kA17,0,kA18,0,kS39,0,kA2,0,kA3,0,kA8,0,kA4,0,kA9,0,kA10,0,kA11,0;';
+function build(){const m=+$('pj').value,ks=[...world.keys()].map(k=>k.split(',').map(Number)),XO=Math.min(0,...ks.map(c=>c[0])),ZO=Math.min(0,...ks.map(c=>c[2]));
+ const out=[`1,31,2,${Math.round((spawn[0]-XO)*30)},3,${Math.round(15+spawn[1]*30)}`];
+ for(const [k,d] of world){const c=k.split(',').map(Number),z=c[2]-ZO,s=m==2?1/(1+.12*z):1,x=Math.round((c[0]-XO)*30+15),y=Math.round(15+c[1]*30*s+(m?z*(m==1?15:18):0)),
+  id=d.k=='pyr'?8:d.d?88:d.b?35:d.f?2063:1;out.push(`1,${id},2,${x},3,${y}`+(s!=1?`,32,${s.toFixed(3)}`:''))}
+ return HDR+out.join(';')+';'}
+async function gz(s){const cs=new CompressionStream('gzip'),w=cs.writable.getWriter();w.write(new TextEncoder().encode(s));w.close();
+ const u=new Uint8Array(await new Response(cs.readable).arrayBuffer());let b='';for(let i=0;i<u.length;i+=8192)b+=String.fromCharCode(...u.subarray(i,i+8192));
+ return btoa(b).replace(/\+/g,'-').replace(/\//g,'_')}
+$('ex').onclick=async()=>{
+ if(!window.CompressionStream)return alert('Нужен современный браузер (Chrome, Safari 16.4+, Firefox 113+).');
+ if(!world.size)return toast('Place some blocks first');
+ const name=$('nm').value.replace(/[<>&"]/g,'')||'Level',data=await gz(build());
+ const xml=`<?xml version="1.0"?><plist version="1.0" gjver="2.0"><dict><k>kCEK</k><i>4</i><k>k2</k><s>${name}</s><k>k4</k><s>${data}</s><k>k5</k><s>CubeEditor</s><k>k13</k><t /><k>k21</k><i>2</i><k>k50</k><i>45</i></dict></plist>`;
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([xml],{type:'text/xml'}));a.download=name+'.gmd';a.click()};
+
+// ---------- старт ----------
+try{const s=JSON.parse(localStorage.getItem('cubeEd')||'null');if(s){cubes=s.cubes;pyrs=s.pyrs;spawn=s.spawn;$('nm').value=s.nm;$('pj').value=s.pj;$('th').value=s.th;document.documentElement.dataset.t=s.th;s.w.forEach(([k,d])=>setCell(k,d))}}catch(e){}
+sp.position.set(spawn[0],spawn[1]+1.2,spawn[2]);
+function rs(){R.setSize(cv.clientWidth,cv.clientHeight);C.aspect=cv.clientWidth/cv.clientHeight;C.updateProjectionMatrix()}
+new ResizeObserver(rs).observe(cv);pal();
+let fr=0,t0=performance.now(),tl=t0;
+(function loop(t){requestAnimationFrame(loop);const dt=Math.min(.05,(t-tl)/1000);tl=t;fr++;if(t-t0>1000){$('fps').textContent='FPS: '+fr;fr=0;t0=t}
+ if(P){step(dt);if(P){C.position.set(P.x,P.y+1.6,P.z);C.rotation.set(pit,yaw,0,'YXZ')}}else OC.update();R.render(S,C)})(performance.now());
+</script>
+</body>
+</html>
