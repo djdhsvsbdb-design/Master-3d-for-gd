@@ -61,7 +61,7 @@ body.pl #app>:not(#cv){display:none}body.pl #app{grid-template:1fr/1fr;padding:0
     <div id="stm" class="menu" hidden>
       <b>Settings</b>
       <label class="row">Theme<select id="th"><option value="">Pink</option><option value="gold">Gold</option></select></label>
-      <label class="row">GD view<select id="pj"><option value="0">Flat 2D</option><option value="1" selected>Isometric 3D</option><option value="2">Perspective 3D</option></select></label>
+      <label class="row">GD view<select id="pj"><option value="0">Flat 2D</option><option value="1" selected>Isometric 3D</option><option value="2">Perspective 3D</option></select></label><label class="row">3DL decoration<select id="gd3d"><option value="1" selected>On</option><option value="0">Off</option></select></label>
       <button id="ex">Export .gmd</button>
     </div>
   </div>
@@ -82,9 +82,9 @@ const WH=['#ffffff','#e6e6ee','#c8c8d2','#ffffff'];
 let cubes=Array.from({length:16},(_,i)=>slot(i?WH.slice():['#6a1be0','#e089d8','#7a2a5a','#f2f2f2'],'Cube '+(i+1)));
 const PC=['#e0323c','#f4f4f4','#222','#f08a24','#f2c230','#7fd13b','#2fa84f','#26b5a5','#2eb8e6','#3a6be0','#5b45d6','#8a3fd1','#d63fa0','#8a5a3a','#7d7d86','#111'];
 let pyrs=PC.map((c,i)=>({...slot([c,c,c,c],'Spike '+(i+1)),d:1}));
-let mode='cube',idx={cube:0,pyr:0},tool='place',inspOn=false,spawn=[2.5,0,2.5];
+let mode='cube',idx={cube:0,pyr:0,sphere:0,cylinder:0},tool='place',inspOn=false,spawn=[2.5,0,2.5];
 const world=new Map();let H=[],RD=[];
-const arr=()=>mode=='cube'?cubes:pyrs,cur=()=>arr()[idx[mode]];
+const spheres=PC.map((c,i)=>({...slot([c,c,c,c],'Sphere '+(i+1))}));\nconst cylinders=PC.map((c,i)=>({...slot([c,c,c,c],'Cylinder '+(i+1))}));\nconst arr=()=>mode=='cube'?cubes:mode=='pyr'?pyrs:mode=='sphere'?spheres:cylinders,cur=()=>arr()[idx[mode]];
 const strip=d=>d&&JSON.parse(JSON.stringify({...d,m:0}));
 const mkd=()=>{const s=cur();return JSON.parse(JSON.stringify({k:mode,c:s.c,s:s.s,d:s.d,b:s.b,f:s.f,t:s.t,pin:s.pin}))};
 
@@ -105,8 +105,8 @@ function gc(c){const k=c.join();if(GC[k])return GC[k];const g=new T.BoxGeometry(
  g.setAttribute('color',new T.Float32BufferAttribute(o,3));return GC[k]=g}
 function setCell(k,d){const old=world.get(k);if(old)S.remove(old.m);
  if(!d){world.delete(k);return}
- const m=d.k=='cube'?new T.Mesh(gc(d.c),VM):new T.Mesh(PG,new T.MeshLambertMaterial({color:d.c[0]})),p=k.split(',').map(Number);
- m.position.set(p[0]+.5,p[1]+.5,p[2]+.5);m.userData.key=k;S.add(m);world.set(k,{...d,m})}
+ const geo=d.k=='cube'?gc(d.c):d.k=='pyr'?PG:d.k=='sphere'?new T.SphereGeometry(.5,18,14):new T.CylinderGeometry(.5,.5,1,16);const mat=d.k=='cube'?VM:new T.MeshLambertMaterial({color:d.c[0]});const m=new T.Mesh(geo,mat),p=k.split(',').map(Number);
+ m.scale.setScalar(Math.max(.1,Math.min(4,+d.s||1)));m.position.set(p[0]+.5,p[1]+.5,p[2]+.5);m.userData.key=k;S.add(m);world.set(k,{...d,m})}
 function act(k,b,a,rec=true){setCell(k,a);if(rec){H.push({k,b:strip(b),a:strip(a)});RD=[]}save()}
 $('un').onclick=()=>{const h=H.pop();if(h){setCell(h.k,h.b);RD.push(h);save()}};
 $('re').onclick=()=>{const h=RD.pop();if(h){setCell(h.k,h.a);H.push(h);save()}};
@@ -139,26 +139,26 @@ R.domElement.addEventListener('pointerup',e=>{
 function showPin(){const s=cur();pin.visible=inspOn&&!!s.t&&!!s.pin;if(pin.visible)pin.position.set(s.pin[0]+.5,s.pin[1]+.5,s.pin[2]+.5)}
 
 // ---------- панели ----------
-const IC={place:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>',paint:'<path d="M5 20c3 0 4-1 4-3a2 2 0 014 0c0 3-3 3-8 3zM11 15L20 5l-2-2-9 10"/>',del:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',spawn:'<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 10.5v4M6 12.5h4"/><circle cx="16" cy="13" r="1"/>',cube:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>',pyr:'<path d="M12 3l9 17H3zM12 3v17"/>'};
+const IC={place:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>',paint:'<path d="M5 20c3 0 4-1 4-3a2 2 0 014 0c0 3-3 3-8 3zM11 15L20 5l-2-2-9 10"/>',del:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',spawn:'<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 10.5v4M6 12.5h4"/><circle cx="16" cy="13" r="1"/>',cube:'<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/>',pyr:'<path d="M12 3l9 17H3zM12 3v17"/>',sphere:'<circle cx="12" cy="12" r="9"/>',cylinder:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 4 16 4 16 0V6"/>'};
 function tbtn(box,k,fn){const b=document.createElement('button');b.dataset.k=k;b.setAttribute('aria-label',k);b.innerHTML=`<svg viewBox="0 0 24 24">${IC[k]}</svg>`;b.onclick=()=>{fn(k);refresh()};box.append(b)}
 ['place','paint','del','spawn'].forEach(k=>tbtn($('lt'),k,v=>{tool=v;ghost.visible=false}));
-['cube','pyr'].forEach(k=>tbtn($('rt'),k,v=>{mode=v;inspOn=false;pal(false)}));
+['cube','pyr','sphere','cylinder'].forEach(k=>tbtn($('rt'),k,v=>{mode=v;inspOn=false;pal(false)}));
 function refresh(){document.querySelectorAll('#lt button').forEach(b=>b.classList.toggle('on',b.dataset.k==tool));document.querySelectorAll('#rt button').forEach(b=>b.classList.toggle('on',b.dataset.k==mode));insp();showPin()}
 function pal(full=true){const a=arr();$('pal').innerHTML=a.map((s,i)=>`<button class="sl${i==idx[mode]?' on':''}" data-i="${i}" aria-label="${s.n}">${mode=='cube'?`<i style="border-top:9px solid ${s.c[0]};background:linear-gradient(${s.c[1]},${s.c[2]})"></i>`:`<i class="p" style="background:${s.c[0]}"></i>`}</button>`).join('');if(full)refresh()}
 $('pal').onclick=e=>{const b=e.target.closest('.sl');if(!b)return;const i=+b.dataset.i;if(i==idx[mode])inspOn=!inspOn;else{idx[mode]=i;inspOn=false}tool='place';pal()};
 function insp(){const el=$('insp'),s=cur();el.hidden=!inspOn;if(!inspOn)return;const nm=['top','side ↑','side ↓','bottom'];
  el.innerHTML=`<b>${s.n}</b><p>Colour</p><div class="sw">${s.c.slice(0,mode=='cube'?4:1).map((c,i)=>`<label><input type="color" value="${c}" data-i="${i}">${mode=='cube'?nm[i]:'color'}</label>`).join('')}</div>`+
  [['s','Solid'],['d','Deadly'],['b','Bounce'],['f','Finish']].map(([k,l])=>`<div class="row">${l}<input type="checkbox" data-k="${k}"${s[k]?' checked':''}></div>`).join('')+
- `<div class="row">Trigger<select id="trg"><option value="0">None<option value="1"${s.t?' selected':''}>Teleport</select></div>`+(s.t?'<p>Tap the ground to move the teleport pin: that is where the player goes.</p>':'')}
+ `<div class="row">Size<input id="size" type="number" min="0.1" max="4" step="0.1" value="${s.s||1}" style="width:64px;background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:4px"></div><div class="row">Trigger<select id="trg"><option value="0">None<option value="1"${s.t?' selected':''}>Teleport</select></div>`+(s.t?'<p>Tap the ground to move the teleport pin: that is where the player goes.</p>':'')}
 $('insp').oninput=e=>{const s=cur(),t=e.target;
  if(t.type=='color'){if(mode=='cube')s.c[+t.dataset.i]=t.value;else s.c=[t.value,t.value,t.value,t.value];pal(false)}
  else if(t.type=='checkbox')s[t.dataset.k]=t.checked?1:0;
- else if(t.id=='trg'){s.t=+t.value;if(!s.t)s.pin=null;insp();showPin()}
+ else if(t.id=='size'){s.s=Math.max(.1,Math.min(4,+t.value||1));}\n else if(t.id=='trg'){s.t=+t.value;if(!s.t)s.pin=null;insp();showPin()}
  save()};
 $('tp').onclick=()=>{$('tpm').hidden=!$('tpm').hidden;$('stm').hidden=true};
 $('st').onclick=()=>{$('stm').hidden=!$('stm').hidden;$('tpm').hidden=true};
 $('th').onchange=e=>{document.documentElement.dataset.t=e.target.value;save()};
-$('nm').onchange=save;$('pj').onchange=save;
+$('nm').onchange=save;$('pj').onchange=save;$('gd3d').onchange=save;
 $('ex2').onclick=()=>{save();toast('Saved in this browser')};
 function toast(t){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2200)}
 
@@ -203,7 +203,7 @@ function step(dt){
   if(i==2&&d.b)P.vy=13}}
 
 // ---------- сохранение ----------
-function save(){try{localStorage.setItem('cubeEd',JSON.stringify({w:[...world].map(([k,d])=>[k,strip(d)]),cubes,pyrs,spawn,nm:$('nm').value,pj:$('pj').value,th:$('th').value}))}catch(e){}}
+function save(){try{localStorage.setItem('cubeEd',JSON.stringify({w:[...world].map(([k,d])=>[k,strip(d)]),cubes,pyrs,spheres,cylinders,spawn,nm:$('nm').value,pj:$('pj').value,th:$('th').value,gd3d:$('gd3d').value}))}catch(e){}}
 
 // ---------- экспорт .gmd ----------
 const HDR='kA13,0,kA15,0,kA16,0,kA14,,kA6,0,kA7,0,kA17,0,kA18,0,kS39,0,kA2,0,kA3,0,kA8,0,kA4,0,kA9,0,kA10,0,kA11,0;';
@@ -228,7 +228,7 @@ function build(){
   const q=pos(p),depth=Math.max(0,p[2]-Math.min(...points.map(v=>v[2])));
   const scale=m===2?Math.max(.65,1-depth*.012):1;
   const id=d.k==='pyr'?8:d.d?88:d.b?35:d.f?2063:1;
-  out.push(`1,${id},2,${q.x},3,${q.y}`+(scale!==1?`,32,${scale.toFixed(3)}`:''));
+  const sz=Math.max(.1,Math.min(4,+d.s||1))*scale;out.push(`1,${id},2,${q.x},3,${q.y},32,${sz.toFixed(3)}`);if($('gd3d').value==='1'&&d.k==='cube'&&!d.d&&!d.f){out.push(`1,506,2,${q.x},3,${q.y+30},32,${sz.toFixed(3)}`);out.push(`1,507,2,${q.x+30},3,${q.y+30},32,${sz.toFixed(3)}`);out.push(`1,509,2,${q.x+60},3,${q.y+30},32,${sz.toFixed(3)}`);}
  }
  return HDR+out.join(';')+';';
 }
@@ -243,7 +243,7 @@ $('ex').onclick=async()=>{
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([xml],{type:'text/xml'}));a.download=name+'.gmd';a.click()};
 
 // ---------- старт ----------
-try{const s=JSON.parse(localStorage.getItem('cubeEd')||'null');if(s){cubes=s.cubes;pyrs=s.pyrs;spawn=s.spawn;$('nm').value=s.nm;$('pj').value=s.pj;$('th').value=s.th;document.documentElement.dataset.t=s.th;s.w.forEach(([k,d])=>setCell(k,d))}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem('cubeEd')||'null');if(s){cubes=s.cubes;pyrs=s.pyrs;spheres=s.spheres||spheres;cylinders=s.cylinders||cylinders;spawn=s.spawn;$('nm').value=s.nm;$('pj').value=s.pj;$('th').value=s.th;$('gd3d').value=s.gd3d??'1';document.documentElement.dataset.t=s.th;s.w.forEach(([k,d])=>setCell(k,d))}}catch(e){}
 sp.position.set(spawn[0],spawn[1]+1.2,spawn[2]);
 function rs(){R.setSize(cv.clientWidth,cv.clientHeight);C.aspect=cv.clientWidth/cv.clientHeight;C.updateProjectionMatrix()}
 new ResizeObserver(rs).observe(cv);pal();
