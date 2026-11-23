@@ -82,7 +82,7 @@ const WH=['#ffffff','#e6e6ee','#c8c8d2','#ffffff'];
 let cubes=Array.from({length:16},(_,i)=>slot(i?WH.slice():['#6a1be0','#e089d8','#7a2a5a','#f2f2f2'],'Cube '+(i+1)));
 const PC=['#e0323c','#f4f4f4','#222','#f08a24','#f2c230','#7fd13b','#2fa84f','#26b5a5','#2eb8e6','#3a6be0','#5b45d6','#8a3fd1','#d63fa0','#8a5a3a','#7d7d86','#111'];
 let pyrs=PC.map((c,i)=>({...slot([c,c,c,c],'Spike '+(i+1)),d:1}));
-let mode='cube',idx={cube:0,pyr:0},tool='place',inspOn=false,spawn=[2.5,0,2.5];
+let mode='cube',idx={cube:0,pyr:0,sphere:0,cylinder:0},tool='place',inspOn=false,spawn=[2.5,0,2.5];
 const world=new Map();let H=[],RD=[];
 const spheres=PC.map((c,i)=>({...slot([c,c,c,c],'Sphere '+(i+1))}));\nconst cylinders=PC.map((c,i)=>({...slot([c,c,c,c],'Cylinder '+(i+1))}));\nconst arr=()=>mode=='cube'?cubes:mode=='pyr'?pyrs:mode=='sphere'?spheres:cylinders,cur=()=>arr()[idx[mode]];
 const strip=d=>d&&JSON.parse(JSON.stringify({...d,m:0}));
